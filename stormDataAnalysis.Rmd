@@ -1,0 +1,55 @@
+---
+title: "An Analysis of Storm Data and its Toll on Life and Property."
+author: "Eric S."
+date: "November 17, 2018"
+output: html_document
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r loaddata}
+#stormData <- read.csv("./repdata%2Fdata%2FStormData.csv.bz2")
+```
+
+## Synopsis:
+
+...no more than 10 sentences...
+
+## Data Processing
+
+```{r dataprocessing}
+fatalitiesByType <- aggregate(stormData$FATALITIES, by=list(stormData$EVTYPE), FUN=sum)
+subsetFatalitiesByType <- fatalitiesByType[fatalitiesByType$x>0,]
+sortedFatalitiesByType <- subsetFatalitiesByType[order(-subsetFatalitiesByType$x),]
+names(sortedFatalitiesByType) <- c("stormType", "totalFatalities")
+
+injuriesByType <- aggregate(stormData$INJURIES, by=list(stormData$EVTYPE), FUN=sum)
+subsetInjuriesByType <- injuriesByType[injuriesByType$x>0,]
+sortedInjuriesByType <- subsetInjuriesByType[order(-subsetInjuriesByType$x),]
+names(sortedInjuriesByType) <- c("stormType", "totalInjuries")
+
+subsetForPropertyDamage <- stormData[stormData$PROPDMGEXP %in% c("h","H","m","M","b","B"),]
+subsetForPropertyDamage$mult <- 100
+subsetForPropertyDamage$mult[subsetForPropertyDamage$PROPDMGEXP %in% c("m","M")] <- 1000000 
+subsetForPropertyDamage$mult[subsetForPropertyDamage$PROPDMGEXP %in% c("b","B")] <- 1000000000 
+table(subsetForPropertyDamage$mult)
+subsetForPropertyDamage$propertyDamage <- subsetForPropertyDamage$PROPDMG * subsetForPropertyDamage$mult
+
+propertyDamageByType<- aggregate(subsetForPropertyDamage$propertyDamage, by=list(subsetForPropertyDamage$EVTYPE), FUN=sum)
+sortedPropertyDamageByType <- propertyDamageByType[order(-propertyDamageByType$x),]
+```
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Results
+
+You can also embed plots, for example:
+
