@@ -1,5 +1,5 @@
 ---
-title: "An Analysis of Storm Data and its Toll on Life and Property."
+title: "An Assessment of the Imbalance of Personal Safety and Property Loss in Weather Events."
 author: "Eric S."
 date: "November 17, 2018"
 output: html_document
@@ -8,18 +8,21 @@ output: html_document
 ```{r setup, include=TRUE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
-```{r loaddata}
-#stormData <- read.csv("./repdata%2Fdata%2FStormData.csv.bz2")
-```
-
 ## Synopsis:
 
-...no more than 10 sentences...
+Weather events are costly from both a monetary standpoint as well as to human life and well being.  The purpose of this study is to identify which types of events pose the most costly risk relative to injuries/fatalities and vice versa.  
 
 ## Data Processing
 
+The data were processed by starting with the `.bz2` file and loading it into a datafram using the `read.csv` function.
+
 ```{r dataprocessing}
+stormData <- read.csv("./repdata%2Fdata%2FStormData.csv.bz2")
+```
+
+Next, injuries and fatalities are aggregated each by total per storm type, sorted by total descending.
+
+```{r aggregatedata}
 fatalitiesByType <- aggregate(stormData$FATALITIES, by=list(stormData$EVTYPE), FUN=sum)
 subsetFatalitiesByType <- fatalitiesByType[fatalitiesByType$x>0,]
 sortedFatalitiesByType <- subsetFatalitiesByType[order(-subsetFatalitiesByType$x),]
@@ -29,9 +32,17 @@ injuriesByType <- aggregate(stormData$INJURIES, by=list(stormData$EVTYPE), FUN=s
 subsetInjuriesByType <- injuriesByType[injuriesByType$x>0,]
 sortedInjuriesByType <- subsetInjuriesByType[order(-subsetInjuriesByType$x),]
 names(sortedInjuriesByType) <- c("stormType", "totalInjuries")
+```
 
-subsetForPropertyDamage <- stormData[stormData$PROPDMGEXP %in% c("h","H","m","M","b","B"),]
-subsetForPropertyDamage$mult <- 100
+In the case of property damage, damage in the range of thousands, millions and billions are evaluated. The first reason for this is that the documentation around this data set specifies [this translation of cost magnitude](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) on page 12 section 2.7.  There was some [reasearch done to decode the other values](https://github.com/flyingdisc/RepData_PeerAssessment2/blob/master/how-to-handle-PROPDMGEXP.md#how-to-handle-exponent-value-of-propdmgexp-and-cropdmgexp), but they are not formally specified by the creator of the data set.  Also, storms less costly than this represent less that 1/10th of one percent of data points and since the magnitude of these values are on the range of 10s or 100s of dollars, they are negligible.
+
+```{r ratioignored}
+sum(stormData$PROPDMGEXP %in% c("-","?","+","0","1","2","3","4","5","6","7","8","h","H"))/sum(stormData$PROPDMGEXP %in% c("k","K","m","M","b","B"))
+```
+
+```{r propertydamage}
+subsetForPropertyDamage <- stormData[stormData$PROPDMGEXP %in% c("k","K","m","M","b","B"),]
+subsetForPropertyDamage$mult <- 1000
 subsetForPropertyDamage$mult[subsetForPropertyDamage$PROPDMGEXP %in% c("m","M")] <- 1000000 
 subsetForPropertyDamage$mult[subsetForPropertyDamage$PROPDMGEXP %in% c("b","B")] <- 1000000000 
 table(subsetForPropertyDamage$mult)
@@ -39,17 +50,26 @@ subsetForPropertyDamage$propertyDamage <- subsetForPropertyDamage$PROPDMG * subs
 
 propertyDamageByType<- aggregate(subsetForPropertyDamage$propertyDamage, by=list(subsetForPropertyDamage$EVTYPE), FUN=sum)
 sortedPropertyDamageByType <- propertyDamageByType[order(-propertyDamageByType$x),]
+names(sortedPropertyDamageByType) <- c("stormType", "totalCost")
+
 ```
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+The total injury, fatality and cost data were merged.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r mergeddata}
+mergedFatalitiesCost <- merge(sortedFatalitiesByType, sortedPropertyDamageByType, by="stormType", all = TRUE)
+mergedFatalitiesInjuriesCost <- merge(mergedFatalitiesCost, sortedInjuriesByType, by="stormType", all = TRUE)
 ```
 
 ## Results
 
-You can also embed plots, for example:
+Taking a look at the merged data ordered by cost descending, we can see that flooding is extremely expensive and seems to lead to a reasonable amount of injuries/fatalities.  Hurricanes and storm surges are even more weighted toward cost.
+```{r sortedcost}
+head(mergedFatalitiesInjuriesCost[order(-mergedFatalitiesInjuriesCost$totalCost),], 10)
+```
 
+Sorting by fatalities reveals that forms of heat and excessive heat result in tremendous loss of life while not resulting in much monetary expense.
+
+```{r sortedfatalities}
+head(mergedFatalitiesInjuriesCost[order(-mergedFatalitiesInjuriesCost$totalFatalities),],10)
+```
